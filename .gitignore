@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+temp/
+uploads/
+
+# Python cache
+.pytest_cache/
+
+# Build
+dist/
+build/
+
+# IDE
+.idea/
+
+# Output
+output.json
+evaluation_report.json
+
+# Secrets
+*.pem
+*.key 

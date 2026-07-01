@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Customer Support Triage</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, #0f4c81, #1d6f8c);
+      color: #fff;
+      border: 0;
+      border-radius: 1.5rem;
+      box-shadow: 0 1rem 2.5rem rgba(15, 76, 129, 0.16);
+    }
+
+    .panel-card {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.06);
+      background: #fff;
+    }
+
+    .stat-card,
+    .queue-card {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      height: 100%;
+      box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.05);
+    }
+
+    .stat-label {
+      color: #6b7280;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+    }
+
+    .queue-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin-bottom: 0;
+    }
+
+    .metric-card {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      height: 100%;
+      box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.05);
+      background: #fff;
+    }
+
+    .metric-card .metric-label {
+      color: #6b7280;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .metric-card .metric-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+    }
+
+    .subsection-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 0;
+    }
+
+    .failure-pill {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #fff;
+      border-radius: 999px;
+      padding: .6rem .9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      margin: .25rem .5rem .25rem 0;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .info-stack {
+      display: grid;
+      gap: .75rem;
+    }
+
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .65rem .85rem;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: .85rem;
+      background: #fff;
+    }
+
+    .info-line strong {
+      color: #0f172a;
+    }
+
+    .review-row-human {
+      background: #fff5f5 !important;
+    }
+
+    .review-row-auto {
+      background: #f3fbf4 !important;
+    }
+
+    .badge-soft-warning {
+      background: rgba(217, 119, 6, 0.12);
+      color: #9a3412;
+    }
+
+    .badge-soft-success {
+      background: rgba(22, 163, 74, 0.12);
+      color: #166534;
+    }
+
+    .cell-wrap {
+      min-width: 220px;
+      max-width: 320px;
+      white-space: normal;
+    }
+
+    .cell-message {
+      min-width: 260px;
+      max-width: 380px;
+      white-space: normal;
+    }
+
+    .cell-actions {
+      min-width: 240px;
+    }
+
+    .sort-btn.active-sort {
+      box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.35);
+    }
+
+    .table-responsive {
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+
+    pre.json-box {
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: .75rem;
+      padding: 1rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="container py-4 py-lg-5">
+    <section class="card hero-card mb-4">
+      <div class="card-body p-4 p-lg-5">
+        <div class="row align-items-center g-3">
+          <div class="col-lg-8">
+            <div class="text-uppercase fw-semibold opacity-75 mb-2" style="letter-spacing:.08em;">Support Ops Dashboard</div>
+            <h1 class="display-6 fw-bold mb-3">AI Customer Support Triage</h1>
+            <p class="lead mb-0 opacity-90">
+              Upload a CSV, analyze customer messages, and review tickets that need human attention in one enterprise queue.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-4">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} mb-2" role="alert">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="card panel-card mb-4">
+      <div class="card-body p-4">
+        <form method="post" action="{{ url_for('analyze') }}" enctype="multipart/form-data">
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-8">
+              <label for="file" class="form-label fw-semibold">Upload CSV</label>
+              <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".csv,text/csv" required>
+              <div class="form-text">CSV must include a <strong>message</strong> column.</div>
+            </div>
+            <div class="col-lg-4 d-grid">
+              <button type="submit" class="btn btn-primary btn-lg">Analyze Dataset</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {% if stats %}
+    <section class="row g-3 mb-4">
+      <div class="col-12 col-sm-6 col-xl">
+        <div class="card stat-card">
+          <div class="card-body p-4">
+            <div class="stat-label">Total Messages</div>
+            <div class="stat-value">{{ stats.total }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl">
+        <div class="card stat-card">
+          <div class="card-body p-4">
+            <div class="stat-label">Successful</div>
+            <div class="stat-value">{{ stats.success }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl">
+        <div class="card stat-card">
+          <div class="card-body p-4">
+            <div class="stat-label">Failed</div>
+            <div class="stat-value">{{ stats.failed }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl">
+        <div class="card stat-card">
+          <div class="card-body p-4">
+            <div class="stat-label">Average Confidence</div>
+            <div class="stat-value">{{ stats.avg_confidence }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if evaluation %}
+    <section class="mb-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+          <h2 class="section-title">AI Evaluation Dashboard</h2>
+          <div class="text-muted mt-1">Post-processing evaluation derived from the uploaded dataset.</div>
+        </div>
+        {% if evaluation_exists %}
+        <a class="btn btn-outline-primary" href="{{ url_for('download_evaluation_report') }}">Download Evaluation Report</a>
+        {% endif %}
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Dataset Size</div><div class="metric-value">{{ evaluation.metrics.dataset_size }}</div></div></div>
+        </div>
+        {% if evaluation.accuracy.available %}
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Correct Predictions</div><div class="metric-value">{{ evaluation.metrics.correct_predictions }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Incorrect Predictions</div><div class="metric-value">{{ evaluation.metrics.incorrect_predictions }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Overall Accuracy (%)</div><div class="metric-value">{{ evaluation.metrics.overall_accuracy }}</div></div></div>
+        </div>
+        {% endif %}
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Average Confidence</div><div class="metric-value">{{ evaluation.metrics.average_confidence }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Human Review %</div><div class="metric-value">{{ evaluation.metrics.human_review_percentage }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Average Processing Time</div><div class="metric-value">{{ evaluation.metrics.average_processing_time }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">API Calls Made</div><div class="metric-value">{{ evaluation.metrics.api_calls_made }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Retry Count</div><div class="metric-value">{{ evaluation.metrics.retry_count }}</div></div></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
+          <div class="card metric-card"><div class="card-body p-4"><div class="metric-label">Failed Requests</div><div class="metric-value">{{ evaluation.metrics.failed_requests }}</div></div></div>
+        </div>
+      </div>
+
+      {% if not evaluation.accuracy.available %}
+      <div class="alert alert-info border-0">
+        Accuracy metrics are hidden because the uploaded dataset does not include an <strong>expected_category</strong> column.
+      </div>
+      {% endif %}
+
+      {% if evaluation.accuracy.available %}
+      <div class="card panel-card mb-3">
+        <div class="card-body p-4">
+          <div class="subsection-title mb-3">Category Performance</div>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Category</th>
+                  <th>Expected</th>
+                  <th>Predicted</th>
+                  <th>Correct</th>
+                  <th>Accuracy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in evaluation.accuracy.category_performance %}
+                <tr>
+                  <td>{{ item.category }}</td>
+                  <td>{{ item.expected }}</td>
+                  <td>{{ item.predicted }}</td>
+                  <td>{{ item.correct }}</td>
+                  <td>{{ item.accuracy }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+          <div class="card panel-card h-100">
+            <div class="card-body p-4">
+              <div class="subsection-title mb-3">Known Failures</div>
+              {% if evaluation.known_failures %}
+              <div>
+                {% for item in evaluation.known_failures %}
+                <span class="failure-pill"><span class="badge text-bg-secondary">{{ item.count }}</span>{{ item.label }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="text-muted">No difficult cases were detected in this dataset.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="card panel-card h-100">
+            <div class="card-body p-4">
+              <div class="subsection-title mb-3">Latency</div>
+              <div class="info-stack">
+                <div class="info-line"><strong>Average Processing Time</strong><span>{{ evaluation.latency.average_processing_time }}</span></div>
+                <div class="info-line"><strong>Fastest Prediction</strong><span>{{ evaluation.latency.fastest_prediction }}</span></div>
+                <div class="info-line"><strong>Slowest Prediction</strong><span>{{ evaluation.latency.slowest_prediction }}</span></div>
+                <div class="info-line"><strong>Total Runtime</strong><span>{{ evaluation.latency.total_runtime }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+          <div class="card panel-card h-100">
+            <div class="card-body p-4">
+              <div class="subsection-title mb-3">Cost Estimation</div>
+              <div class="info-stack">
+                <div class="info-line"><strong>Total API Calls</strong><span>{{ evaluation.metrics.api_calls_made }}</span></div>
+                <div class="info-line"><strong>Average Batch Size</strong><span>{{ evaluation.metrics.average_batch_size }}</span></div>
+                <div class="info-line"><strong>Retry Count</strong><span>{{ evaluation.retry_count }}</span></div>
+                <div class="info-line"><strong>Estimated Cost</strong><span>{{ evaluation.metrics.estimated_cost }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="card panel-card h-100">
+            <div class="card-body p-4">
+              <div class="subsection-title mb-3">Model Information</div>
+              <div class="info-stack">
+                <div class="info-line"><strong>Model</strong><span>{{ evaluation.model_information.model }}</span></div>
+                <div class="info-line"><strong>Batch Size</strong><span>{{ evaluation.model_information.batch_size }}</span></div>
+                <div class="info-line"><strong>Retry Strategy</strong><span>{{ evaluation.model_information.retry_strategy }}</span></div>
+                <div class="info-line"><strong>Confidence Threshold</strong><span>{{ '%.2f'|format(evaluation.model_information.confidence_threshold) }}</span></div>
+                <div class="info-line"><strong>Validator Enabled</strong><span>{{ 'Yes' if evaluation.model_information.validator_enabled else 'No' }}</span></div>
+                <div class="info-line"><strong>Prompt Injection Protection</strong><span>{{ 'Yes' if evaluation.model_information.prompt_injection_protection else 'No' }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if results %}
+    <section class="mb-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <h2 class="h4 mb-0 fw-bold">Human Review Queue</h2>
+        {% if output_exists %}
+        <a class="btn btn-outline-primary" href="{{ url_for('download_results') }}">Download JSON</a>
+        {% endif %}
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+          <div class="card queue-card">
+            <div class="card-body p-4">
+              <div class="d-flex align-items-center justify-content-between gap-3">
+                <div>
+                  <div class="queue-title">👤 Tickets Needing Human Review</div>
+                  <div class="text-muted small mt-2">Tickets flagged for manual handling.</div>
+                </div>
+                <div class="display-6 fw-bold mb-0">{{ stats.needs_human }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="card queue-card">
+            <div class="card-body p-4">
+              <div class="d-flex align-items-center justify-content-between gap-3">
+                <div>
+                  <div class="queue-title">🤖 Auto-Resolved Tickets</div>
+                  <div class="text-muted small mt-2">Tickets resolved without review.</div>
+                </div>
+                <div class="display-6 fw-bold mb-0">{{ stats.auto_resolved }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="card queue-card">
+            <div class="card-body p-4">
+              <div class="d-flex align-items-center justify-content-between gap-3">
+                <div>
+                  <div class="queue-title">📊 Human Review Percentage</div>
+                  <div class="text-muted small mt-2">Share of messages requiring manual review.</div>
+                </div>
+                <div class="display-6 fw-bold mb-0">{{ stats.review_percentage }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card panel-card mb-3">
+        <div class="card-body p-4">
+          <div class="row g-3 align-items-center">
+            <div class="col-lg-5">
+              <label for="queue-search" class="form-label fw-semibold">Search Queue</label>
+              <input id="queue-search" type="search" class="form-control" placeholder="Search original message, summary, category, or priority">
+            </div>
+            <div class="col-lg-4">
+              <label class="form-label fw-semibold d-block">Filter</label>
+              <div class="btn-group flex-wrap" role="group" aria-label="Queue filters">
+                <button type="button" class="btn btn-primary filter-btn active" data-filter="all">All Tickets</button>
+                <button type="button" class="btn btn-outline-primary filter-btn" data-filter="needs-human">Needs Human</button>
+                <button type="button" class="btn btn-outline-primary filter-btn" data-filter="auto-resolved">Auto Resolved</button>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label fw-semibold d-block">Sort By</label>
+              <div class="btn-group flex-wrap" role="group" aria-label="Queue sorting">
+                <button type="button" class="btn btn-outline-secondary sort-btn active-sort" data-sort-key="priority" data-default-direction="asc">Priority ↑</button>
+                <button type="button" class="btn btn-outline-secondary sort-btn" data-sort-key="confidence" data-default-direction="desc">Confidence ↓</button>
+                <button type="button" class="btn btn-outline-secondary sort-btn" data-sort-key="category" data-default-direction="asc">Category ↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 bg-white" id="queue-table">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Original Message</th>
+              <th scope="col">Category</th>
+              <th scope="col">Priority</th>
+              <th scope="col">Summary</th>
+              <th scope="col">Suggested Action</th>
+              <th scope="col">Needs Human</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Escalation Reason</th>
+              <th scope="col">Status</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="queue-body">
+            {% for row in results %}
+            <tr
+              class="ticket-row {{ row['Row Class'] }}"
+              data-ticket-row="true"
+              data-needs-human="{{ 'true' if row['Needs Human'] else 'false' }}"
+              data-confidence="{{ row['Confidence'] }}"
+              data-category="{{ row['Category'] }}"
+              data-priority="{{ row['Priority'] }}"
+              data-search="{{ (row['Original Message'] ~ ' ' ~ row['Summary'] ~ ' ' ~ row['Category'] ~ ' ' ~ row['Priority'])|lower|e }}"
+              data-row='{{ row|tojson }}'
+            >
+              <td class="cell-message">{{ row['Original Message'] }}</td>
+              <td class="cell-wrap">{{ row['Category'] }}</td>
+              <td class="cell-wrap"><span class="badge text-bg-secondary">{{ row['Priority'] }}</span></td>
+              <td class="cell-wrap">{{ row['Summary'] }}</td>
+              <td class="cell-wrap">{{ row['Suggested Action'] }}</td>
+              <td class="cell-wrap">
+                {% if row['Needs Human'] %}
+                <span class="me-2 text-warning fw-bold">⚠</span><span class="badge badge-soft-warning">Needs Human Review</span>
+                {% else %}
+                <span class="me-2 text-success fw-bold">✓</span><span class="badge badge-soft-success">Auto Resolved</span>
+                {% endif %}
+              </td>
+              <td class="cell-wrap">{{ '%.2f'|format(row['Confidence']) }}</td>
+              <td class="cell-wrap">{{ row['Escalation Reason'] }}</td>
+              <td class="cell-wrap">
+                {% if row['Needs Human'] %}
+                <span class="badge text-bg-danger">Needs Review</span>
+                {% else %}
+                <span class="badge text-bg-success">Resolved</span>
+                {% endif %}
+              </td>
+              <td class="cell-actions">
+                <div class="btn-group btn-group-sm flex-wrap" role="group">
+                  {% if row['Needs Human'] %}
+                  <button type="button" class="btn btn-success">Approve</button>
+                  <button type="button" class="btn btn-outline-secondary">Assign Agent</button>
+                  {% endif %}
+                  <button type="button" class="btn btn-outline-primary view-details-btn" data-row='{{ row|tojson }}'>View Details</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr id="queue-empty-row" class="d-none">
+              <td colspan="10" class="text-center text-muted py-5">No tickets match the current filters.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% elif results is not none %}
+    <section class="card panel-card">
+      <div class="card-body p-5 text-center text-muted">No messages were processed.</div>
+    </section>
+    {% endif %}
+  </main>
+
+  <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="detailsModalLabel">Ticket Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6"><strong>Original Message</strong><div id="modal-original-message" class="text-muted mt-1"></div></div>
+            <div class="col-md-6"><strong>Summary</strong><div id="modal-summary" class="text-muted mt-1"></div></div>
+            <div class="col-md-4"><strong>Category</strong><div id="modal-category" class="text-muted mt-1"></div></div>
+            <div class="col-md-4"><strong>Priority</strong><div id="modal-priority" class="text-muted mt-1"></div></div>
+            <div class="col-md-4"><strong>Confidence</strong><div id="modal-confidence" class="text-muted mt-1"></div></div>
+            <div class="col-md-4"><strong>Needs Human</strong><div id="modal-needs-human" class="text-muted mt-1"></div></div>
+            <div class="col-md-8"><strong>Suggested Action</strong><div id="modal-suggested-action" class="text-muted mt-1"></div></div>
+          </div>
+          <div class="mb-2 fw-bold">Raw JSON Response</div>
+          <pre class="json-box" id="modal-raw-json"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (() => {
+      const queueBody = document.getElementById('queue-body');
+      const queueSearch = document.getElementById('queue-search');
+      const filterButtons = Array.from(document.querySelectorAll('.filter-btn'));
+      const sortButtons = Array.from(document.querySelectorAll('.sort-btn'));
+      const emptyRow = document.getElementById('queue-empty-row');
+      const detailsModal = document.getElementById('detailsModal');
+      const modal = detailsModal ? new bootstrap.Modal(detailsModal) : null;
+      const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
+      const defaultDirections = { priority: 'asc', confidence: 'desc', category: 'asc' };
+      const state = {
+        filter: 'all',
+        search: '',
+        sortKey: 'priority',
+        sortDirection: 'asc',
+      };
+
+      function getRows() {
+        return Array.from(queueBody.querySelectorAll('tr[data-ticket-row="true"]'));
+      }
+
+      function matchesFilter(row) {
+        const needsHuman = row.dataset.needsHuman === 'true';
+        if (state.filter === 'needs-human') return needsHuman;
+        if (state.filter === 'auto-resolved') return !needsHuman;
+        return true;
+      }
+
+      function matchesSearch(row) {
+        if (!state.search) return true;
+        return (row.dataset.search || '').includes(state.search);
+      }
+
+      function getComparableValue(row, key) {
+        if (key === 'priority') {
+          return priorityOrder[row.dataset.priority] ?? 99;
+        }
+        if (key === 'confidence') {
+          return Number.parseFloat(row.dataset.confidence || '0');
+        }
+        if (key === 'category') {
+          return (row.dataset.category || '').toLowerCase();
+        }
+        return '';
+      }
+
+      function compareRows(a, b) {
+        const aValue = getComparableValue(a, state.sortKey);
+        const bValue = getComparableValue(b, state.sortKey);
+        if (aValue < bValue) return state.sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return state.sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      }
+
+      function updateSortButtonLabels() {
+        sortButtons.forEach((button) => {
+          const key = button.dataset.sortKey;
+          const active = key === state.sortKey;
+          button.classList.toggle('active-sort', active);
+          button.classList.toggle('btn-primary', active);
+          button.classList.toggle('btn-outline-secondary', !active);
+          const direction = active ? state.sortDirection : button.dataset.defaultDirection;
+          button.textContent = `${button.dataset.sortKey.charAt(0).toUpperCase()}${button.dataset.sortKey.slice(1)} ${direction === 'asc' ? '↑' : '↓'}`;
+        });
+      }
+
+      function updateFilterButtonState() {
+        filterButtons.forEach((button) => {
+          const active = button.dataset.filter === state.filter;
+          button.classList.toggle('btn-primary', active);
+          button.classList.toggle('btn-outline-primary', !active);
+          button.classList.toggle('active', active);
+        });
+      }
+
+      function applyState() {
+        if (!queueBody) return;
+        const rows = getRows().sort(compareRows);
+        rows.forEach((row) => queueBody.appendChild(row));
+
+        let visibleCount = 0;
+        rows.forEach((row) => {
+          const visible = matchesFilter(row) && matchesSearch(row);
+          row.classList.toggle('d-none', !visible);
+          if (visible) visibleCount += 1;
+        });
+
+        if (emptyRow) {
+          emptyRow.classList.toggle('d-none', visibleCount !== 0);
+          queueBody.appendChild(emptyRow);
+        }
+      }
+
+      filterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          state.filter = button.dataset.filter;
+          updateFilterButtonState();
+          applyState();
+        });
+      });
+
+      sortButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const key = button.dataset.sortKey;
+          if (state.sortKey === key) {
+            state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            state.sortKey = key;
+            state.sortDirection = button.dataset.defaultDirection || defaultDirections[key] || 'asc';
+          }
+          updateSortButtonLabels();
+          applyState();
+        });
+      });
+
+      if (queueSearch) {
+        queueSearch.addEventListener('input', () => {
+          state.search = queueSearch.value.trim().toLowerCase();
+          applyState();
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('.view-details-btn');
+        if (!button || !modal) return;
+
+        const rowData = JSON.parse(button.dataset.row || '{}');
+        document.getElementById('modal-original-message').textContent = rowData['Original Message'] || '';
+        document.getElementById('modal-summary').textContent = rowData['Summary'] || '';
+        document.getElementById('modal-category').textContent = rowData['Category'] || '';
+        document.getElementById('modal-priority').textContent = rowData['Priority'] || '';
+        document.getElementById('modal-confidence').textContent = rowData['Confidence'] ?? '';
+        document.getElementById('modal-needs-human').textContent = rowData['Needs Human'] ? 'Yes' : 'No';
+        document.getElementById('modal-suggested-action').textContent = rowData['Suggested Action'] || '';
+        document.getElementById('modal-raw-json').textContent = JSON.stringify(rowData['Raw JSON Response'] || {}, null, 2);
+        modal.show();
+      });
+
+      updateFilterButtonState();
+      updateSortButtonLabels();
+      applyState();
+    })();
+  </script>
+</body>
+</html>
